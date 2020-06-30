@@ -155,7 +155,7 @@ def update_backup():
 	write_csv('.'+output_file+'.bak', 'w')
 
 def command_handler():
-	print("\nAvailable Commands:")
+	print("\rAvailable Commands:")
 	print('E <num> : Edit QSO <num>')
 	print('C       : Continue entering logs')
 	print('S       : Save and exit')
@@ -211,3 +211,4 @@ while True:
 		print_line()
 	except KeyboardInterrupt:
 		command_handler()
+		print_line()
