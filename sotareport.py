@@ -155,7 +155,7 @@ def update_backup():
 	write_csv('.'+output_file+'.bak', 'w')
 
 def command_handler():
-	print("\rAvailable Commands:")
+	print("\x1b[2K\rAvailable Commands:")
 	print('E <num> : Edit QSO <num>')
 	print('C       : Continue entering logs')
 	print('S       : Save and exit')
