@@ -141,6 +141,16 @@ def query_qso(default={'time': '', 'remote_callsign': '', 'mode': mode, 'freq': 
 		'comment': comment,
 	}
 
+def write_csv(filename, mode):
+	with open(filename, mode) as f:
+		csvfile = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
+		for l in log:
+			# [V2] [My Callsign][My Summit] [Date] [Time] [Band] [Mode] [His Callsign] [His Summit] [Notes or Comments]
+			csvfile.writerow(['V2', callsign, summit, date, l['time'], l['freq'], l['mode'], l['remote_callsign'], l['remote_summit'], l['comment']])
+
+def update_backup():
+	write_csv('.'+output_file+'.bak', 'w')
+
 def command_handler():
 	print("\nAvailable Commands:")
 	print('E <num> : Edit QSO <num>')
@@ -155,12 +165,10 @@ def command_handler():
 			print('Edit QSO #%i:' % qso)
 			l = query_qso(log[qso-1])
 			log[qso-1] = l
+			update_backup()
 		elif cmd == 'S':
-			with open(output_file, 'a') as f:
-				csvfile = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
-				for l in log:
-					csvfile.writerow(['V2', callsign, summit, date, l['time'], l['freq'], l['mode'], l['remote_callsign'], l['remote_summit'], l['comment']])
-			os.unlink(output_file+'.bak')
+			write_csv(output_file, 'a')
+			os.unlink('.'+output_file+'.bak')
 			sys.exit(0)
 
 
@@ -188,17 +196,13 @@ else:
 date = input_date(strpad('Date (DD/MM/YY): '))
 print_line()
 
-with open(output_file+'.bak', 'a') as f:
-	print("Adding log to '%s' - Press CTRL+C to close" % output_file)
-	csvfile = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
-	while True:
-		print('Enter QSO #%i:' % (len(log)+1))
-		try:
-			l = query_qso()
-			log.append(l)
-			# [V2] [My Callsign][My Summit] [Date] [Time] [Band] [Mode] [His Callsign] [His Summit] [Notes or Comments]
-			csvfile.writerow(['V2', callsign, summit, date, l['time'], l['freq'], l['mode'], l['remote_callsign'], l['remote_summit'], l['comment']])
-			f.flush()
-			print_line()
-		except KeyboardInterrupt:
-			command_handler()
+print("Adding log to '%s' - Press CTRL+C to edit previous QSOs or exit" % output_file)
+while True:
+	print('Enter QSO #%i:' % (len(log)+1))
+	try:
+		l = query_qso()
+		log.append(l)
+		update_backup()
+		print_line()
+	except KeyboardInterrupt:
+		command_handler()
