@@ -119,13 +119,16 @@ def input_summit(query, allow_empty=False, default=''):
 		except KeyError:
 			print("Error: Summit not found")
 
-def query_qso(default={'time': '', 'remote_callsign': '', 'mode': mode, 'freq': freq, 'remote_summit': '', 'comment': ''}):
+def query_qso(default={'time': '', 'remote_callsign': '', 'mode': None, 'freq': None, 'remote_summit': '', 'comment': ''}):
 	global freq
 	global mode
+	default = default.copy() # default from function header is readonly
+	default['mode'] = mode if default['mode'] == None else default['mode']
+	default['freq'] = freq if default['freq'] == None else default['freq']
 	time = input_time(strpad('Time (HHMM - UTC): '), default['time'])
 	remote_callsign = input_callsign(strpad('Callsign: '), default['remote_callsign']).upper()
-	freq = rlinput(strpad('Freq (7MHz/21MHz): '), default['freq'] if default else freq).lower().replace('mhz', 'MHz').replace(' ', '')
-	mode = rlinput(strpad('Mode (CW/SSB/FM): '), default['mode'] if default else mode).upper()
+	freq = rlinput(strpad('Freq (7MHz/21MHz): '), default['freq']).lower().replace('mhz', 'MHz').replace(' ', '')
+	mode = rlinput(strpad('Mode (CW/SSB/FM): '), default['mode']).upper()
 	remote_summit = input_summit(strpad('S2S Summit: ' if summit else 'Chased Summit: '), bool(summit), default['remote_summit']) # don't allow empty value for chasers here
 	if remote_summit:
 		print(strpad('Found Summit: ') + "%(SummitName)s (%(AltM)sm), %(RegionName)s, %(AssociationName)s" % summits[remote_summit])
@@ -166,6 +169,8 @@ def command_handler():
 			l = query_qso(log[qso-1])
 			log[qso-1] = l
 			update_backup()
+		elif cmd == 'D':
+			import pdb; pdb.set_trace()
 		elif cmd == 'S':
 			write_csv(output_file, 'a')
 			os.unlink('.'+output_file+'.bak')
