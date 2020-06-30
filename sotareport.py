@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 import os
 import sys
@@ -142,7 +142,7 @@ load_summit_db()
 
 print_line()
 print('Enter station info:')
-callsign = input_callsign(strpad('Your Callsign: '))
+callsign = input_callsign(strpad('Your Callsign: ')).upper()
 summit = input_summit(strpad('Your Summit: '), True)
 if summit:
 	print(strpad('Found Summit: '), end='')
@@ -158,8 +158,8 @@ with open(output_file, 'a') as f:
 	while True:
 		print('Enter QSO #%i:' % (len(log)+1))
 		time = input_time(strpad('Time (HHMM - UTC): '))
-		remote_callsign = input_callsign(strpad('Callsign: '))
-		freq = rlinput(strpad('Freq (21MHz/80m): '), freq).lower().replace('mhz', 'MHz').replace(' ', '')
+		remote_callsign = input_callsign(strpad('Callsign: ')).upper()
+		freq = rlinput(strpad('Freq (21MHz/144MHz): '), freq).lower().replace('mhz', 'MHz').replace(' ', '')
 		mode = rlinput(strpad('Mode (CW/SSB/FM): '), mode).upper()
 		remote_summit = input_summit(strpad('S2S Summit: ' if summit else 'Chased Summit: '), bool(summit)) # don't allow empty value for chasers here
 		if remote_summit:
