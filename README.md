@@ -1,6 +1,6 @@
 # sotareport
 
-This tool will help you generating your radio QSO log for submission to the SOTA Database at \
+This tool will help you generating your radio QSO log in the CSV format for submission to the SOTA Database at \
 https://www.sotadata.org.uk/en/upload/activator/csv
 
 It can be used for both Activators and Chasers.
