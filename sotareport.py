@@ -9,7 +9,6 @@ from time import strptime
 import csv
 from math import sin, cos, sqrt, atan2, radians
 import readline
-import signal
 
 SUMMIT_DB_URL = 'https://www.sotadata.org.uk/summitslist.csv'
 SUMMIT_DB_FILE = os.path.expanduser('~/.cache/sotareport/summitslist.csv')
@@ -79,17 +78,17 @@ def rlinput(prompt, prefill=''):
 	finally:
 		readline.set_startup_hook()
 
-def input_callsign(query):
+def input_callsign(query, default=''):
 	while True:
-		call = input(query)
+		call = rlinput(query, default)
 		if len(call) >= 3:
 			return call
 		else:
 			print("Error: Callsign too short")
 
-def input_time(query):
+def input_time(query, default=''):
 	while True:
-		time = input(query)
+		time = rlinput(query, default)
 		try:
 			if len(time) == 4:
 				time = time[0:2] + ':' + time[2:4]
@@ -100,18 +99,18 @@ def input_time(query):
 		except:
 			print("Error: Invalid time format - use HHMM or HH:MM 24h UTC")
 
-def input_date(query):
+def input_date(query, default=''):
 	while True:
-		date = input(query)
+		date = rlinput(query, default)
 		try:
 			strptime(date, '%d/%m/%y')
 			return date
 		except:
 			print("Error: Invalid date format - use DD/MM/YY")
 
-def input_summit(query, allow_empty=False):
+def input_summit(query, allow_empty=False, default=''):
 	while True:
-		summit = input(query)
+		summit = rlinput(query, default).upper()
 		if summit == '' and allow_empty:
 			return summit
 		try:
@@ -120,13 +119,50 @@ def input_summit(query, allow_empty=False):
 		except KeyError:
 			print("Error: Summit not found")
 
-def signal_handler(sig, frame):
-	print("\nExiting.")
-	sys.exit(0)
+def query_qso(default={'time': '', 'remote_callsign': '', 'mode': mode, 'freq': freq, 'remote_summit': '', 'comment': ''}):
+	global freq
+	global mode
+	time = input_time(strpad('Time (HHMM - UTC): '), default['time'])
+	remote_callsign = input_callsign(strpad('Callsign: '), default['remote_callsign']).upper()
+	freq = rlinput(strpad('Freq (7MHz/21MHz): '), default['freq'] if default else freq).lower().replace('mhz', 'MHz').replace(' ', '')
+	mode = rlinput(strpad('Mode (CW/SSB/FM): '), default['mode'] if default else mode).upper()
+	remote_summit = input_summit(strpad('S2S Summit: ' if summit else 'Chased Summit: '), bool(summit), default['remote_summit']) # don't allow empty value for chasers here
+	if remote_summit:
+		print(strpad('Found Summit: ') + "%(SummitName)s (%(AltM)sm), %(RegionName)s, %(AssociationName)s" % summits[remote_summit])
+		if summit:
+			print(strpad('Distance: ') + "%ikm" % summit_distance(summit, remote_summit))
+	comment = rlinput(strpad('Comment: '), default['comment'])
+	return {
+		'time': time,
+		'remote_callsign': remote_callsign,
+		'mode': mode,
+		'freq': freq,
+		'remote_summit': remote_summit,
+		'comment': comment,
+	}
 
+def command_handler():
+	print("\nAvailable Commands:")
+	print('E <num> : Edit QSO <num>')
+	print('C       : Continue entering logs')
+	print('S       : Save and exit')
+	while True:
+		cmd = input('cmd> ').upper()
+		if cmd == '' or cmd == 'C':
+			return
+		elif cmd.startswith('E'):
+			qso = int(cmd.split(' ')[1])
+			print('Edit QSO #%i:' % qso)
+			l = query_qso(log[qso-1])
+			log[qso-1] = l
+		elif cmd == 'S':
+			with open(output_file, 'a') as f:
+				csvfile = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
+				for l in log:
+					csvfile.writerow(['V2', callsign, summit, date, l['time'], l['freq'], l['mode'], l['remote_callsign'], l['remote_summit'], l['comment']])
+			os.unlink(output_file+'.bak')
+			sys.exit(0)
 
-
-signal.signal(signal.SIGINT, signal_handler)
 
 try:
 	output_file = sys.argv[1]
@@ -152,30 +188,17 @@ else:
 date = input_date(strpad('Date (DD/MM/YY): '))
 print_line()
 
-with open(output_file, 'a') as f:
+with open(output_file+'.bak', 'a') as f:
 	print("Adding log to '%s' - Press CTRL+C to close" % output_file)
 	csvfile = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
 	while True:
 		print('Enter QSO #%i:' % (len(log)+1))
-		time = input_time(strpad('Time (HHMM - UTC): '))
-		remote_callsign = input_callsign(strpad('Callsign: ')).upper()
-		freq = rlinput(strpad('Freq (21MHz/144MHz): '), freq).lower().replace('mhz', 'MHz').replace(' ', '')
-		mode = rlinput(strpad('Mode (CW/SSB/FM): '), mode).upper()
-		remote_summit = input_summit(strpad('S2S Summit: ' if summit else 'Chased Summit: '), bool(summit)) # don't allow empty value for chasers here
-		if remote_summit:
-			print(strpad('Found Summit: ') + "%(SummitName)s (%(AltM)sm), %(RegionName)s, %(AssociationName)s" % summits[remote_summit])
-			if summit:
-				print(strpad('Distance: ') + "%ikm" % summit_distance(summit, remote_summit))
-		comment = input(strpad('Comment: '))
-		log.append({
-			'time': time,
-			'remote_callsign': remote_callsign,
-			'mode': mode,
-			'freq': freq,
-			'remote_summit': remote_summit,
-			'comment': comment,
-		})
-		# [V2] [My Callsign][My Summit] [Date] [Time] [Band] [Mode] [His Callsign] [His Summit] [Notes or Comments]
-		csvfile.writerow(['V2', callsign, summit, date, time, freq, mode, remote_callsign, remote_summit, comment])
-		f.flush()
-		print_line()
+		try:
+			l = query_qso()
+			log.append(l)
+			# [V2] [My Callsign][My Summit] [Date] [Time] [Band] [Mode] [His Callsign] [His Summit] [Notes or Comments]
+			csvfile.writerow(['V2', callsign, summit, date, l['time'], l['freq'], l['mode'], l['remote_callsign'], l['remote_summit'], l['comment']])
+			f.flush()
+			print_line()
+		except KeyboardInterrupt:
+			command_handler()
