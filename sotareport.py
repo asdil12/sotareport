@@ -9,6 +9,7 @@ from time import strptime
 import csv
 from math import sin, cos, sqrt, atan2, radians
 import readline
+import argparse
 
 SUMMIT_DB_URL = 'https://www.sotadata.org.uk/summitslist.csv'
 SUMMIT_DB_FILE = os.path.expanduser('~/.cache/sotareport/summitslist.csv')
@@ -119,7 +120,7 @@ def input_summit(query, allow_empty=False, default=''):
 		except KeyError:
 			print("Error: Summit not found")
 
-def query_qso(default={'time': '', 'remote_callsign': '', 'mode': None, 'freq': None, 'remote_summit': '', 'comment': ''}):
+def query_qso(default={'time': '', 'remote_callsign': '', 'freq': None, 'mode': None, 'rst_gvn': '', 'rst_rec': '', 'remote_summit': '', 'comment': ''}):
 	global freq
 	global mode
 	default = default.copy() # default from function header is readonly
@@ -129,6 +130,8 @@ def query_qso(default={'time': '', 'remote_callsign': '', 'mode': None, 'freq': 
 	remote_callsign = input_callsign(strpad('Callsign: '), default['remote_callsign']).upper()
 	freq = rlinput(strpad('Freq (7MHz/21MHz): '), default['freq']).lower().replace('mhz', 'MHz').replace(' ', '')
 	mode = rlinput(strpad('Mode (CW/SSB/FM): '), default['mode']).upper()
+	rst_gvn = "" if args.no_rst else rlinput(strpad('RST given: '), default['rst_gvn']).upper()
+	rst_rec = "" if args.no_rst else rlinput(strpad('RST received: '), default['rst_rec']).upper()
 	remote_summit = input_summit(strpad('S2S Summit: ' if summit else 'Chased Summit: '), bool(summit), default['remote_summit']) # don't allow empty value for chasers here
 	if remote_summit:
 		print(strpad('Found Summit: ') + "%(SummitName)s (%(AltM)sm), %(RegionName)s, %(AssociationName)s" % summits[remote_summit])
@@ -138,9 +141,11 @@ def query_qso(default={'time': '', 'remote_callsign': '', 'mode': None, 'freq': 
 	return {
 		'time': time,
 		'remote_callsign': remote_callsign,
-		'mode': mode,
 		'freq': freq,
+		'mode': mode,
 		'remote_summit': remote_summit,
+		'rst_gvn': rst_gvn,
+		'rst_rec': rst_rec,
 		'comment': comment,
 	}
 
@@ -148,11 +153,21 @@ def write_csv(filename, mode):
 	with open(filename, mode) as f:
 		csvfile = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
 		for l in log:
+			# add RST to comment as CSV spec lacks RST field
+			comments = []
+			if l['comment']:
+				comments.append(l['comment'])
+			if l['rst_gvn']:
+				comments.append('GVN: %s' % l['rst_gvn'])
+			if l['rst_rec']:
+				comments.append('REC: %s' % l['rst_rec'])
+			comment = ', '.join(comments)
+
 			# [V2] [My Callsign][My Summit] [Date] [Time] [Band] [Mode] [His Callsign] [His Summit] [Notes or Comments]
-			csvfile.writerow(['V2', callsign, summit, date, l['time'], l['freq'], l['mode'], l['remote_callsign'], l['remote_summit'], l['comment']])
+			csvfile.writerow(['V2', callsign, summit, date, l['time'], l['freq'], l['mode'], l['remote_callsign'], l['remote_summit'], comment])
 
 def update_backup():
-	write_csv('.'+output_file+'.bak', 'w')
+	write_csv('.'+args.output_file+'.bak', 'w')
 
 def command_handler():
 	print("\x1b[2K\rAvailable Commands:")
@@ -160,31 +175,33 @@ def command_handler():
 	print('C       : Continue entering logs')
 	print('S       : Save and exit')
 	while True:
-		cmd = input('cmd> ').upper()
-		if cmd == '' or cmd == 'C':
-			return
-		elif cmd.startswith('E'):
-			qso = int(cmd.split(' ')[1])
-			print('Edit QSO #%i:' % qso)
-			l = query_qso(log[qso-1])
-			log[qso-1] = l
-			update_backup()
-		elif cmd == 'D':
-			import pdb; pdb.set_trace()
-		elif cmd == 'S':
-			write_csv(output_file, 'a')
-			os.unlink('.'+output_file+'.bak')
-			sys.exit(0)
+		try:
+			cmd = input('cmd> ').upper()
+			if cmd == '' or cmd == 'C':
+				return
+			elif cmd.startswith('E'):
+				try:
+					qso = int(cmd.split(' ')[1])
+					print('Edit QSO #%i:' % qso)
+					l = query_qso(log[qso-1])
+					log[qso-1] = l
+					update_backup()
+				except (ValueError, IndexError):
+					print("Error: Invalid QSO index")
+			elif cmd == 'D':
+				import pdb; pdb.set_trace()
+			elif cmd == 'S':
+				write_csv(args.output_file, 'a')
+				os.unlink('.'+args.output_file+'.bak')
+				sys.exit(0)
+		except KeyboardInterrupt:
+			input('Press Ctrl+C to quit without saving - or press ENTER to return to CMD prompt.')
 
 
-try:
-	output_file = sys.argv[1]
-except:
-	print("The sotareport SOTA Log Submit Tool")
-	print("===================================\n")
-	print("This tool will append the given log to the output file.\n")
-	print("Usage: %s OUTPUTFILE" % sys.argv[0])
-	sys.exit(1)
+parser = argparse.ArgumentParser(description="This tool will append the given log to the output file.")
+parser.add_argument("-r", "--no-rst", help="Don't ask for RST", action="store_true")
+parser.add_argument("output_file", help="Write CSV to this file")
+args = parser.parse_args()
 
 update_summit_db()
 load_summit_db()
@@ -201,7 +218,7 @@ else:
 date = input_date(strpad('Date (DD/MM/YY): '))
 print_line()
 
-print("Adding log to '%s' - Press CTRL+C to edit previous QSOs or exit" % output_file)
+print("Adding log to '%s' - Press CTRL+C to edit previous QSOs or exit" % args.output_file)
 while True:
 	print('Enter QSO #%i:' % (len(log)+1))
 	try:
