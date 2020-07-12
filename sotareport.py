@@ -10,12 +10,16 @@ import csv
 from math import sin, cos, sqrt, atan2, radians
 import readline
 import argparse
+import traceback
 
 SUMMIT_DB_URL = 'https://www.sotadata.org.uk/summitslist.csv'
 SUMMIT_DB_FILE = os.path.expanduser('~/.cache/sotareport/summitslist.csv')
+NAMES_DB_URL = 'https://hb9sota.ch/names_hb9bin/names.csv'
+NAMES_DB_FILE = os.path.expanduser('~/.cache/sotareport/names.csv')
 SPACE_PADDING = 20
 
 summits = {}
+names = {}
 log = []
 mode = ''
 freq = ''
@@ -37,17 +41,17 @@ def geo_distance(lat1, lon1, lat2, lon2):
 
 	return R * c
 
-def update_summit_db():
-	os.makedirs(os.path.dirname(SUMMIT_DB_FILE), exist_ok=True)
-	r = requests.head(SUMMIT_DB_URL)
+def update_db(name, url, dbfile):
+	os.makedirs(os.path.dirname(dbfile), exist_ok=True)
+	r = requests.head(url)
 	try:
-		file_last_updated = datetime.datetime.fromtimestamp(os.path.getmtime(SUMMIT_DB_FILE))
+		file_last_updated = datetime.datetime.fromtimestamp(os.path.getmtime(dbfile))
 	except FileNotFoundError:
 		file_last_updated = datetime.datetime.fromtimestamp(0)
 	if parsedate(r.headers['last-modified']) > file_last_updated.replace(tzinfo=datetime.timezone.utc):
-		print('Updating summit cache ', end='')
-		r = requests.get(SUMMIT_DB_URL, allow_redirects=True, stream=True)
-		with open(SUMMIT_DB_FILE, 'wb') as f:
+		print('Updating %s cache ' % name, end='')
+		r = requests.get(url, allow_redirects=True, stream=True)
+		with open(dbfile, 'wb') as f:
 			for chunk in r.iter_content(1024*1024):
 				sys.stdout.write('.')
 				sys.stdout.flush()
@@ -60,6 +64,15 @@ def load_summit_db():
 	f.readline() # skip first line that looks like "SOTA Summits List (Date=29/06/2020)"
 	for summit in csv.DictReader(f):
 		summits[summit['SummitCode']] = summit
+
+def load_name_db():
+	try:
+		f = open(NAMES_DB_FILE, 'r')
+		for e in csv.DictReader(f):
+			names[e['Call']] = e['Name']
+	except:
+		traceback.print_exc()
+		pass
 
 def summit_distance(summit1, summit2):
 	s1 = summits[summit1]
@@ -81,8 +94,10 @@ def rlinput(prompt, prefill=''):
 
 def input_callsign(query, default=''):
 	while True:
-		call = rlinput(query, default)
+		call = rlinput(query, default).upper()
 		if len(call) >= 3:
+			if call in names:
+				print(strpad('Found in HB9SOTA: ') + 'Name: %s' % names[call])
 			return call
 		else:
 			print("Error: Callsign too short")
@@ -127,7 +142,7 @@ def query_qso(default={'time': '', 'remote_callsign': '', 'freq': None, 'mode': 
 	default['mode'] = mode if default['mode'] == None else default['mode']
 	default['freq'] = freq if default['freq'] == None else default['freq']
 	time = input_time(strpad('Time (HHMM - UTC): '), default['time'])
-	remote_callsign = input_callsign(strpad('Callsign: '), default['remote_callsign']).upper()
+	remote_callsign = input_callsign(strpad('Callsign: '), default['remote_callsign'])
 	freq = rlinput(strpad('Freq (7MHz/21MHz): '), default['freq']).lower().replace('mhz', 'MHz').replace(' ', '')
 	mode = rlinput(strpad('Mode (CW/SSB/FM): '), default['mode']).upper()
 	rst_gvn = "" if args.no_rst else rlinput(strpad('RST given: '), default['rst_gvn']).upper()
@@ -203,16 +218,18 @@ parser.add_argument("-r", "--no-rst", help="Don't ask for RST", action="store_tr
 parser.add_argument("output_file", help="Write CSV to this file")
 args = parser.parse_args()
 
-update_summit_db()
+update_db('summit', SUMMIT_DB_URL, SUMMIT_DB_FILE)
 load_summit_db()
+
+update_db('name', NAMES_DB_URL, NAMES_DB_FILE)
+load_name_db()
 
 print_line()
 print('Enter station info:')
 callsign = input_callsign(strpad('Your Callsign: ')).upper()
 summit = input_summit(strpad('Your Summit: '), True)
 if summit:
-	print(strpad('Found Summit: '), end='')
-	print("%(SummitName)s (%(AltM)sm), %(RegionName)s, %(AssociationName)s" % summits[summit])
+	print(strpad('Found Summit: ') + "%(SummitName)s (%(AltM)sm), %(RegionName)s, %(AssociationName)s" % summits[summit])
 else:
 	print(strpad('No summit: ') + 'Assuming chaser')
 date = input_date(strpad('Date (DD/MM/YY): '))
