@@ -5,7 +5,6 @@ import sys
 import requests
 import datetime
 from dateutil.parser import parse as parsedate
-from time import strptime
 import csv
 from math import sin, cos, sqrt, atan2, radians
 import readline
@@ -104,25 +103,27 @@ def input_callsign(query, default=''):
 
 def input_time(query, default=''):
 	while True:
+		if isinstance(default, datetime.time):
+			default = default.strftime('%H:%M')
 		time = rlinput(query, default)
 		try:
 			if len(time) == 4:
 				time = time[0:2] + ':' + time[2:4]
 			if time[1] == ':':
 				time = '0' + time
-			strptime(time, '%H:%M')
-			return time
+			return datetime.datetime.strptime(time, '%H:%M').time()
 		except:
 			print("Error: Invalid time format - use HHMM or HH:MM 24h UTC")
 
 def input_date(query, default=''):
 	while True:
+		if isinstance(default, datetime.date):
+			default = default.strftime('%d.%m.%Y')
 		date = rlinput(query, default)
 		try:
-			strptime(date, '%d/%m/%y')
-			return date
+			return datetime.datetime.strptime(date, '%d.%m.%Y').date()
 		except:
-			print("Error: Invalid date format - use DD/MM/YY")
+			print("Error: Invalid date format - use DD.MM.YYYY")
 
 def input_summit(query, allow_empty=False, default=''):
 	while True:
@@ -179,7 +180,7 @@ def write_csv(filename, mode):
 			comment = ', '.join(comments)
 
 			# [V2] [My Callsign][My Summit] [Date] [Time] [Band] [Mode] [His Callsign] [His Summit] [Notes or Comments]
-			csvfile.writerow(['V2', callsign, summit, date, l['time'], l['freq'], l['mode'], l['remote_callsign'], l['remote_summit'], comment])
+			csvfile.writerow(['V2', callsign, summit, date.strftime('%d/%m/%y'), l['time'].strftime('%H:%M'), l['freq'], l['mode'], l['remote_callsign'], l['remote_summit'], comment])
 
 def update_backup():
 	write_csv('.'+args.output_file+'.bak', 'w')
@@ -232,7 +233,7 @@ if summit:
 	print(strpad('Found Summit: ') + "%(SummitName)s (%(AltM)sm), %(RegionName)s, %(AssociationName)s" % summits[summit])
 else:
 	print(strpad('No summit: ') + 'Assuming chaser')
-date = input_date(strpad('Date (DD/MM/YY): '))
+date = input_date(strpad('Date (DD.MM.YYYY): '))
 print_line()
 
 print("Adding log to '%s' - Press CTRL+C to edit previous QSOs or exit" % args.output_file)
