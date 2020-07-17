@@ -178,6 +178,9 @@ def input_date(query, default=''):
 
 
 def input_summit(query, allow_empty=False, default=''):
+	if args.no_sota:
+		return ""
+
 	while True:
 		summit = rlinput(query, default).upper()
 		if summit == '' and allow_empty:
@@ -334,6 +337,7 @@ def command_handler():
 
 parser = argparse.ArgumentParser(description="This tool will append the given log to the output file.")
 parser.add_argument("-r", "--no-rst", help="Don't ask for RST", action="store_true")
+parser.add_argument("-n", "--no-sota", help="Log \"regular\" QSOs without SOTA references.", action="store_true")
 parser.add_argument("output_file", help="Write CSV to this file")
 args = parser.parse_args()
 
@@ -349,7 +353,7 @@ callsign = input_callsign(strpad('Your Callsign: ')).upper()
 summit = input_summit(strpad('Your Summit: '), True)
 if summit:
 	print(strpad('Found Summit: ') + "%(SummitName)s (%(AltM)sm), %(RegionName)s, %(AssociationName)s" % summits[summit])
-else:
+elif not args.no_sota:
 	print(strpad('No summit: ') + 'Assuming chaser')
 rig = input(strpad('RIG: '))
 antenna = input(strpad('Antenna: '))
