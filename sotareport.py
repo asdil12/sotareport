@@ -255,10 +255,13 @@ def write_csv(filename, mode):
 
 
 def write_adi(filename, mode):
+	no_header_needed = (mode == 'a' and os.path.isfile(filename) and os.path.getsize(filename) > 0)
 	with open(filename, mode + 'b') as f:
 		import hamutils.adif
 		import hamutils.adif.common
 		adi = hamutils.adif.ADIWriter(f)
+		if no_header_needed:
+			adi._head_writed = True
 		for l in log:
 			qso = {}
 			qso['operator'] = callsign
