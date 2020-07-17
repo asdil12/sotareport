@@ -23,6 +23,7 @@ log = []
 mode = ''
 freq = ''
 
+
 def geo_distance(lat1, lon1, lat2, lon2):
 	# approximate radius of earth in km
 	R = 6373.0
@@ -40,6 +41,7 @@ def geo_distance(lat1, lon1, lat2, lon2):
 
 	return R * c
 
+
 def update_db(name, url, dbfile):
 	os.makedirs(os.path.dirname(dbfile), exist_ok=True)
 	r = requests.head(url)
@@ -52,15 +54,16 @@ def update_db(name, url, dbfile):
 		sys.stdout.flush()
 		r = requests.get(url, allow_redirects=True, stream=True)
 		with open(dbfile, 'wb') as f:
-			for chunk in r.iter_content(1024*1024):
+			for chunk in r.iter_content(1024 * 1024):
 				sys.stdout.write('.')
 				sys.stdout.flush()
 				f.write(chunk)
 			sys.stdout.write("\n")
 
+
 def load_summit_db():
 	f = open(SUMMIT_DB_FILE, 'r')
-	f.readline() # skip first line that looks like "SOTA Summits List (Date=29/06/2020)"
+	f.readline()  # skip first line that looks like "SOTA Summits List (Date=29/06/2020)"
 	print('Loading summits ', end='')
 	sys.stdout.flush()
 	i = 0
@@ -72,6 +75,7 @@ def load_summit_db():
 			sys.stdout.flush()
 	sys.stdout.write("\n")
 
+
 def load_name_db():
 	try:
 		f = open(NAMES_DB_FILE, 'r')
@@ -81,10 +85,12 @@ def load_name_db():
 		traceback.print_exc()
 		pass
 
+
 def summit_distance(summit1, summit2):
 	s1 = summits[summit1]
 	s2 = summits[summit2]
 	return geo_distance(float(s1['Latitude']), float(s1['Longitude']), float(s2['Latitude']), float(s2['Longitude']))
+
 
 def summit_locator(summit):
 	s = summits[summit]
@@ -117,11 +123,14 @@ def summit_locator(summit):
 
 	return maiden
 
+
 def print_line():
-	print('#'*70)
+	print('#' * 70)
+
 
 def strpad(s):
-	return ' '*(SPACE_PADDING-len(s)) + s
+	return ' ' * (SPACE_PADDING - len(s)) + s
+
 
 def rlinput(prompt, prefill=''):
 	readline.set_startup_hook(lambda: readline.insert_text(prefill))
@@ -129,6 +138,7 @@ def rlinput(prompt, prefill=''):
 		return input(prompt)
 	finally:
 		readline.set_startup_hook()
+
 
 def input_callsign(query, default=''):
 	while True:
@@ -139,6 +149,7 @@ def input_callsign(query, default=''):
 			return call
 		else:
 			print("Error: Callsign too short")
+
 
 def input_time(query, default=''):
 	while True:
@@ -154,6 +165,7 @@ def input_time(query, default=''):
 		except:
 			print("Error: Invalid time format - use HHMM or HH:MM 24h UTC")
 
+
 def input_date(query, default=''):
 	while True:
 		if isinstance(default, datetime.date):
@@ -163,6 +175,7 @@ def input_date(query, default=''):
 			return datetime.datetime.strptime(date, '%d.%m.%Y').date()
 		except:
 			print("Error: Invalid date format - use DD.MM.YYYY")
+
 
 def input_summit(query, allow_empty=False, default=''):
 	while True:
@@ -175,10 +188,11 @@ def input_summit(query, allow_empty=False, default=''):
 		except KeyError:
 			print("Error: Summit not found")
 
+
 def query_qso(default={'time': '', 'remote_callsign': '', 'freq': None, 'mode': None, 'rst_gvn': '', 'rst_rec': '', 'remote_summit': '', 'comment': ''}):
 	global freq
 	global mode
-	default = default.copy() # default from function header is readonly
+	default = default.copy()  # default from function header is readonly
 	default['mode'] = mode if default['mode'] == None else default['mode']
 	default['freq'] = freq if default['freq'] == None else default['freq']
 	time = input_time(strpad('Time (HHMM - UTC): '), default['time'])
@@ -187,12 +201,15 @@ def query_qso(default={'time': '', 'remote_callsign': '', 'freq': None, 'mode': 
 	mode = rlinput(strpad('Mode (CW/SSB/FM): '), default['mode']).upper()
 	rst_gvn = "" if args.no_rst else rlinput(strpad('RST given: '), default['rst_gvn']).upper()
 	rst_rec = "" if args.no_rst else rlinput(strpad('RST received: '), default['rst_rec']).upper()
-	remote_summit = input_summit(strpad('S2S Summit: ' if summit else 'Chased Summit: '), bool(summit), default['remote_summit']) # don't allow empty value for chasers here
+	remote_summit = input_summit(
+		strpad('S2S Summit: ' if summit else 'Chased Summit: '), bool(summit), default['remote_summit']  # don't allow empty value for chasers here
+	)
 	if remote_summit:
 		print(strpad('Found Summit: ') + "%(SummitName)s (%(AltM)sm), %(RegionName)s, %(AssociationName)s" % summits[remote_summit])
 		if summit:
 			print(strpad('Distance: ') + "%ikm" % summit_distance(summit, remote_summit))
 	comment = rlinput(strpad('Comment: '), default['comment'])
+
 	return {
 		'time': time,
 		'remote_callsign': remote_callsign,
@@ -203,6 +220,7 @@ def query_qso(default={'time': '', 'remote_callsign': '', 'freq': None, 'mode': 
 		'rst_rec': rst_rec,
 		'comment': comment,
 	}
+
 
 def write_csv(filename, mode):
 	with open(filename, mode) as f:
@@ -219,10 +237,22 @@ def write_csv(filename, mode):
 			comment = ', '.join(comments)
 
 			# [V2] [My Callsign][My Summit] [Date] [Time] [Band] [Mode] [His Callsign] [His Summit] [Notes or Comments]
-			csvfile.writerow(['V2', callsign, summit, date.strftime('%d/%m/%y'), l['time'].strftime('%H:%M'), l['freq']+'MHz', l['mode'], l['remote_callsign'], l['remote_summit'], comment])
+			csvfile.writerow([
+				'V2',
+				callsign,
+				summit,
+				date.strftime('%d/%m/%y'),
+				l['time'].strftime('%H:%M'),
+				l['freq']+'MHz',
+				l['mode'],
+				l['remote_callsign'],
+				l['remote_summit'],
+				comment
+			])
+
 
 def write_adi(filename, mode):
-	with open(filename, mode+'b') as f:
+	with open(filename, mode + 'b') as f:
 		import hamutils.adif
 		import hamutils.adif.common
 		adi = hamutils.adif.ADIWriter(f)
@@ -240,9 +270,9 @@ def write_adi(filename, mode):
 			if antenna:
 				qso['my_antenna'] = antenna
 			qso['qso_date'] = date
-			qso['time_on']= l['time']
+			qso['time_on'] = l['time']
 			qso['freq'] = float(l['freq'])
-			qso['band'] = hamutils.adif.common.convert_freq_to_band(qso['freq']) or "%im" % (300/qso['freq'])
+			qso['band'] = hamutils.adif.common.convert_freq_to_band(qso['freq']) or "%im" % (300 / qso['freq'])
 			qso['mode'] = l['mode']
 			qso['call'] = l['remote_callsign']
 			if l['remote_summit']:
@@ -259,8 +289,10 @@ def write_adi(filename, mode):
 			adi.add_qso(**qso)
 		adi.close()
 
+
 def update_backup():
 	write_outputfile(args.output_file, '.bak', 'w')
+
 
 def write_outputfile(fname, fsuffix='', mode='w'):
 	output_file = fname + fsuffix
@@ -268,6 +300,7 @@ def write_outputfile(fname, fsuffix='', mode='w'):
 		write_csv(output_file, mode)
 	elif fname.endswith('.adi'):
 		write_adi(output_file, mode)
+
 
 def command_handler():
 	print("\x1b[2K\rAvailable Commands:")
@@ -283,16 +316,17 @@ def command_handler():
 				try:
 					qso = int(cmd.split(' ')[1])
 					print('Edit QSO #%i:' % qso)
-					l = query_qso(log[qso-1])
-					log[qso-1] = l
+					l = query_qso(log[qso - 1])
+					log[qso - 1] = l
 					update_backup()
 				except (ValueError, IndexError):
 					print("Error: Invalid QSO index")
 			elif cmd == 'D':
-				import pdb; pdb.set_trace()
+				import pdb
+				pdb.set_trace()
 			elif cmd == 'S':
 				write_outputfile(args.output_file, mode='a')
-				os.unlink(args.output_file+'.bak')
+				os.unlink(args.output_file + '.bak')
 				sys.exit(0)
 		except KeyboardInterrupt:
 			input('Press Ctrl+C to quit without saving - or press ENTER to return to CMD prompt.')
@@ -324,7 +358,7 @@ print_line()
 
 print("Adding log to '%s' - Press CTRL+C to edit previous QSOs or exit" % args.output_file)
 while True:
-	print('Enter QSO #%i:' % (len(log)+1))
+	print('Enter QSO #%i:' % (len(log) + 1))
 	try:
 		l = query_qso()
 		log.append(l)
