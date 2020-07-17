@@ -337,7 +337,7 @@ def command_handler():
 
 parser = argparse.ArgumentParser(description="This tool will append the given log to the output file.")
 parser.add_argument("-r", "--no-rst", help="Don't ask for RST", action="store_true")
-parser.add_argument("-n", "--no-sota", help="Log \"regular\" QSOs without SOTA references.", action="store_true")
+parser.add_argument("-s", "--no-sota", help="Log \"regular\" QSOs without SOTA references.", action="store_true")
 parser.add_argument("output_file", help="Write CSV to this file")
 args = parser.parse_args()
 
