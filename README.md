@@ -1,3 +1,6 @@
+> [!WARNING]
+> Moved to https://codeberg.org/asdil12/sotareport
+
 # sotareport
 
 This tool will help you generating your radio QSO log in the CSV format for submission to the SOTA Database at \
